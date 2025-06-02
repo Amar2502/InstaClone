@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Eye, EyeOff, FacebookIcon } from "lucide-react";
 import { useState } from "react";
-import { ReactFormState } from "react-dom/client";
+import Link from "next/link";
 
 interface login {
   email: string;
@@ -141,10 +141,12 @@ export default function Start() {
           {/* Don't have account */}
           <div className="text-sm text-blue-50 text-center mt-5">
             Don't have an account?
-            <span className="text-blue-400 cursor-pointer text-sm font-medium">
-              {" "}
-              Sign up
-            </span>
+            <Link
+              href="/accounts/emailsignup"
+              className="text-blue-400 cursor-pointer text-sm font-medium"
+            >
+              <span> Sign up</span>
+            </Link>
           </div>
         </div>
       </div>

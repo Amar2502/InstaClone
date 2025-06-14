@@ -4,25 +4,61 @@ import Image from "next/image";
 import { Eye, EyeOff, Facebook } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
+import axios from "axios";
+import FloatingInput from "@/components/self/floatinginput";
+import { z } from "zod";
+import SuccessAnimation from "@/components/self/successanimation";
 
 interface Register {
   identifier: string;
   password: string;
-  fullname: string;
+  fullName: string;
   username: string;
-  source: string;
+  auth_source: string;
 }
+
+interface Error {
+  message: string;
+  problem: string;
+}
+
+const registerSchema = z.object({
+  identifier: z
+    .string()
+    .min(5, "Identifier is too short")
+    .refine(
+      (val) =>
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) ||
+        /^[0-9]{10}$/.test(val),
+      {
+        message: "Must be a valid email or phone number",
+      }
+    ),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .max(12, "Password must be no more than 12 characters"),
+  fullName: z.string().min(1, "Full name is required"),
+  username: z.string().min(1, "Username is required"),
+  auth_source: z.string(),
+});
 
 export default function EmailSignup() {
   const [show, setShow] = useState(false);
 
+  const [error, setError] = useState<Error | null>(null);
+
   const [register, setRegister] = useState<Register>({
     identifier: "",
     password: "",
-    fullname: "",
+    fullName: "",
     username: "",
-    source: "email",
+    auth_source: "email",
   });
+
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof Register, string>>>({});
+
+  const [success, setSuccess] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRegister((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -30,9 +66,36 @@ export default function EmailSignup() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Removed all backend validation or API interaction
-    console.log("Form submitted with:", register);
+    setFormErrors({}); // reset
+
+    const result = registerSchema.safeParse(register);
+
+    if (!result.success) {
+      const fieldErrors: Partial<Record<keyof Register, string>> = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as keyof Register;
+        fieldErrors[field] = err.message;
+      });
+      setFormErrors(fieldErrors);
+      return; // don't submit if validation fails
+    }
+
+    axios.post("http://localhost:5000/users/register", register)
+      .then((res) => {
+        console.log("Response:", res.data);
+        setError(null);
+        setSuccess(true);
+      })
+      .catch((err) => {
+        console.log("Error:", err.response.data.message);
+        setError({
+          message: err.response.data.message,
+          problem: err.response.data.problem,
+        });
+        console.error("Error:", err);
+      });
   };
+
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4">
@@ -64,54 +127,56 @@ export default function EmailSignup() {
           </div>
 
           <form onSubmit={handleSubmit} className="w-full flex flex-col gap-2">
-            <input
-              type="text"
+            <FloatingInput
               name="identifier"
-              placeholder="Mobile number or email address"
+              label="Mobile number or email address"
               value={register.identifier}
               onChange={handleChange}
-              className="w-full px-3 py-2 text-sm rounded border border-zinc-700 bg-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-blue-500"
               required
             />
+            {formErrors.identifier && (
+              <p className="text-red-500 text-sm pl-1">{formErrors.identifier}</p>
+            )}
 
-            <div className="relative">
-              <input
-                type={show ? "text" : "password"}
-                name="password"
-                placeholder="Password"
-                value={register.password}
-                onChange={handleChange}
-                minLength={6}
-                className="w-full px-3 py-2 text-sm rounded border border-zinc-700 bg-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-blue-500 pr-10"
-                required
-              />
-              <div
-                onClick={() => setShow(!show)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 cursor-pointer"
-              >
+            {error && error.problem === "email" && (
+              <p className="text-red-500 text-sm pl-1">{error.message}</p>
+            )}
+
+            <FloatingInput
+              name="password"
+              label="Password"
+              type={show ? "text" : "password"}
+              value={register.password}
+              onChange={handleChange}
+              required
+              minLength={6}
+            >
+              <div onClick={() => setShow(!show)}>
                 {show ? <EyeOff size={16} /> : <Eye size={16} />}
               </div>
-            </div>
+            </FloatingInput>
+            {formErrors.password && <p className="text-red-500 text-sm pl-1">{formErrors.password}</p>}
 
-            <input
-              type="text"
-              name="fullname"
-              placeholder="Full Name"
-              value={register.fullname}
+            <FloatingInput
+              name="fullName"
+              label="Full Name"
+              value={register.fullName}
               onChange={handleChange}
-              className="w-full px-3 py-2 text-sm rounded border border-zinc-700 bg-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-blue-500"
               required
             />
-
-            <input
-              type="text"
+            {formErrors.fullName && <p className="text-red-500 text-sm pl-1">{formErrors.fullName}</p>}
+            
+            <FloatingInput
               name="username"
-              placeholder="Username"
+              label="Username"
               value={register.username}
               onChange={handleChange}
-              className="w-full px-3 py-2 text-sm rounded border border-zinc-700 bg-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-blue-500"
               required
             />
+            {formErrors.username && <p className="text-red-500 text-sm pl-1">{formErrors.username}</p>}
+            {error && error.problem === "username" && (
+              <p className="text-red-500 text-sm pl-1">{error.message}</p>
+            )}
 
             <p className="text-[11px] text-zinc-400 text-center mt-2">
               People who use our service may have uploaded your contact information to Instagram.{" "}
@@ -132,6 +197,7 @@ export default function EmailSignup() {
               Sign Up
             </button>
           </form>
+          {success && <SuccessAnimation/>}
         </div>
 
         <div className="border border-zinc-800 rounded-sm text-center py-4 mt-3 text-sm">

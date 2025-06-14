@@ -11,3 +11,7 @@ backend/dist
 
 # Logs
 *.log
+
+# Prisma
+prisma/migrations/
+src/generated/

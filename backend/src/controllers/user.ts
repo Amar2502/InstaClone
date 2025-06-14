@@ -1,12 +1,31 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
-import { hashPassword } from "../utils/hash";
+import { comparePassword, hashPassword } from "../utils/hash";
+import { RowDataPacket } from "mysql2";
+import jwt from "jsonwebtoken"
+import config from "../config/config";
 
 interface RegisterUserRequest {
   identifier: string;
   password: string;
   fullName: string;
   username: string;
+  auth_source: string;
+}
+
+interface LoginUserRequest {
+  identifier: string;
+  password: string;
+}
+
+interface User extends RowDataPacket {
+  id: number;
+  username: string;
+  fullname: string;
+  identifier: string;
+  password: string;
+  bio: string | null;
+  created_at: Date;
   auth_source: string;
 }
 
@@ -59,3 +78,45 @@ export const registerUser = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const loginUser = async (req: Request, res: Response) => {
+  const {identifier, password} = req.body as LoginUserRequest;
+  console.log(req.body);
+
+  try {
+    
+    const [rows, fields] = await pool.query<User[]>(
+      "SELECT * FROM users WHERE identifier = ?",
+      [identifier]
+    );
+
+    if(rows.length==0) {
+      return res.status(400).json({ message: "User does not exist", problem: "identifier" });
+    } 
+
+    const isMatch = await comparePassword(password, rows[0].password)
+
+    if(!isMatch) {
+      return res.status(400).json({ message: "Password is not correct", problem: "password" });
+    }
+
+    const token = jwt.sign(
+      {username: rows[0].username, identifier: rows[0].identifier},
+      config.JWT_SECRET,
+      {expiresIn: "30d"}
+    )
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      sameSite: "strict",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in ms
+    })
+
+    res.status(201).json({ message: "User logined successfully", user: rows, token: token});
+    
+
+  } catch (error) {
+    return res.status(400).json({ message: "Internal Server Error" });
+  }
+  
+}

@@ -197,7 +197,7 @@ export default function EmailSignup() {
               Sign Up
             </button>
           </form>
-          {success && <SuccessAnimation/>}
+          {success && <SuccessAnimation message="Registration Successfull" redirectUrl="/" redirectMsg="Redirecting to login page"/>}
         </div>
 
         <div className="border border-zinc-800 rounded-sm text-center py-4 mt-3 text-sm">

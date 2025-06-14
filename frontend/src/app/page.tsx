@@ -4,55 +4,86 @@ import Image from "next/image";
 import { Eye, EyeOff, FacebookIcon } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
+import {z} from "zod";
+import FloatingInput from "@/components/self/floatinginput";
+import axios from "axios";
+import SuccessAnimation from "@/components/self/successanimation";
 
 interface login {
-  email: string;
+  identifier: string;
   password: string;
 }
 
+interface Error {
+  message: string;
+  problem: string;
+}
+
+const loginSchema = z.object({
+  identifier: z
+    .string()
+    .refine(
+      (val) =>
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || /^[6-9]\d{9}$/.test(val),
+      { message: "Enter a valid email or mobile number" }
+    ),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, "Password must be alphanumeric (A–Z, a–z, 0–9)"),
+});
+
 export default function Start() {
-  const [show, setShow] = useState("password");
-  const [error, setError] = useState<login>({
-    email: "",
-    password: "",
-  });
+  const [show, setShow] = useState(false);
+
+  const [error, setError] = useState<Error | null>(null);
+
   const [login, setLogin] = useState<login>({
-    email: "",
+    identifier: "",
     password: "",
   });
+
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof login, string>>>({});
+
+  const [success, setSuccess] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLogin((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const validatePassword = (password: string) => {
-    const strongAlphaNum = /^(?=.*[A-Za-z])(?=.*\d).+$/;
-    return strongAlphaNum.test(password);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+  
+    const result = loginSchema.safeParse(login);
 
-    const emailValid = validateEmail(login.email);
-    const passwordValid = validatePassword(login.password);
-
-    setError({
-      email: emailValid ? "" : "Enter a valid email address",
-      password: passwordValid
-        ? ""
-        : "Password must be alphanumeric (A–Z, a–z, 0–9 only)",
-    });
-
-    if (emailValid && passwordValid) {
-      console.log("Form submitted:", login);
-      // Proceed with API call or login logic
+    if (!result.success) {
+      const fieldErrors: Partial<Record<keyof login, string>> = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as keyof login;
+        fieldErrors[field] = err.message;
+      });
+      setFormErrors(fieldErrors);
+      return; // don't submit if validation fails
     }
+  
+    console.log("Form submitted:", login);
+
+    axios.post("http://localhost:5000/users/login", login, {withCredentials: true,}) 
+    .then((res) => {
+      console.log("Response:", res.data);
+        setError(null);
+        setSuccess(true);
+    })
+    .catch((err) => {
+      console.log("Error:", err.response.data.message);
+      setError({
+        message: err.response.data.message,
+        problem: err.response.data.problem,
+      });
+      console.error("Error:", err);
+    });
   };
+  
 
   return (
     <div className="h-screen w-screen bg-black text-white flex justify-center items-center">
@@ -74,44 +105,38 @@ export default function Start() {
 
           {/*Login Form*/}
           <form className="flex flex-col gap-4 w-64" onSubmit={handleSubmit}>
-            <input
-              type="text"
-              placeholder="Email"
-              name="email"
-              value={login.email}
-              required
-              className="text-white px-4 py-1.5 rounded border border-zinc-500"
+          <FloatingInput
+              name="identifier"
+              label="Mobile number or email address"
+              value={login.identifier}
               onChange={handleChange}
+              required
             />
-            <div className="relative">
-              <input
-                type={show}
-                placeholder="Password"
-                value={login.password}
-                name="password"
-                required
-                minLength={6}
-                className="text-white px-4 py-1.5 pr-10 w-full rounded border border-zinc-500"
-                onChange={handleChange}
-              />
-              {show === "password" ? (
-                <Eye
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 cursor-pointer"
-                  onClick={() => setShow("text")}
-                />
-              ) : (
-                <EyeOff
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 cursor-pointer"
-                  onClick={() => setShow("password")}
-                />
-              )}
-            </div>
-            {error.email && (
-              <span className="text-red-500 text-sm">{error.email}</span>
+            {formErrors.identifier && (
+              <p className="text-red-500 text-sm pl-1">{formErrors.identifier}</p>
             )}
-            {error.password && (
-              <span className="text-red-500 text-sm">{error.password}</span>
+            {error && error.problem === "identifier" && (
+              <p className="text-red-500 text-sm pl-1">{error.message}</p>
             )}
+
+            <FloatingInput
+              name="password"
+              label="Password"
+              type={show ? "text" : "password"}
+              value={login.password}
+              onChange={handleChange}
+              required
+              minLength={6}
+            >
+              <div onClick={() => setShow(!show)}>
+                {show ? <EyeOff size={16} /> : <Eye size={16} />}
+              </div>
+            </FloatingInput>
+            {formErrors.password && <p className="text-red-500 text-sm pl-1">{formErrors.password}</p>}
+            {error && error.problem === "password" && (
+              <p className="text-red-500 text-sm pl-1">{error.message}</p>
+            )}
+
             <button
               type="submit"
               className="bg-blue-500 text-white py-1 rounded-lg hover:bg-blue-600 transition cursor-pointer"
@@ -119,6 +144,8 @@ export default function Start() {
               Login
             </button>
           </form>
+
+          {success && <SuccessAnimation message="Login Successfull" redirectUrl="/dashboard" redirectMsg="Redirecting to Home Page"/>}
 
           {/* Divider */}
           <div className="flex items-center gap-2 my-4">

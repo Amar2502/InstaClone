@@ -18,6 +18,11 @@ interface LoginUserRequest {
   password: string;
 }
 
+interface DOBUserRequest {
+  dob: string;
+  identifier: string;
+}
+
 interface User extends RowDataPacket {
   id: number;
   username: string;
@@ -119,4 +124,33 @@ export const loginUser = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Internal Server Error" });
   }
   
+}
+
+export const dobUser = async (req: Request, res: Response) => {
+  const {dob, identifier} = req.body as DOBUserRequest;
+  console.log(req.body);
+
+  console.log(identifier);
+
+  try {
+    const [rows, fields] = await pool.query<User[]>(
+      "Select * from users where identifier = ?",
+      [identifier]
+    )
+
+    if(rows.length==0) {
+      return res.status(400).json({ message: "User does not exist", problem: "identifier" });
+    }
+
+    await pool.query(
+      "UPDATE users SET date_of_birth = ? WHERE identifier = ?",
+      [dob, identifier]
+    )
+
+    res.status(200).json({ message: "User DOB updated successfully", user: rows });
+
+    } catch (error) {
+    console.error("❌ Error registering user:", error);
+    res.status(500).json({ message: "Internal Server Error, Please try again later" });
+  }
 }

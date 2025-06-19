@@ -1,10 +1,10 @@
 // app/store.ts or src/store/store.ts
 import { configureStore } from '@reduxjs/toolkit';
-import identifierReducer from '../features/identifierSlice';
+import registrationReducer from '../features/registrationSlice';
 
 export const store = configureStore({
   reducer: {
-    identifier: identifierReducer,
+    registration: registrationReducer,
   },
 });
 

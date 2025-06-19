@@ -11,16 +11,12 @@ interface RegisterUserRequest {
   fullName: string;
   username: string;
   auth_source: string;
+  date_of_birth: string;
 }
 
 interface LoginUserRequest {
   identifier: string;
   password: string;
-}
-
-interface DOBUserRequest {
-  dob: string;
-  identifier: string;
 }
 
 interface User extends RowDataPacket {
@@ -35,7 +31,7 @@ interface User extends RowDataPacket {
 }
 
 export const registerUser = async (req: Request, res: Response) => {
-  const { identifier, password, fullName, username, auth_source } = req.body as RegisterUserRequest;
+  const { identifier, password, fullName, username, auth_source, date_of_birth } = req.body as RegisterUserRequest;
   console.log(req.body);
 
   try {
@@ -73,8 +69,8 @@ export const registerUser = async (req: Request, res: Response) => {
     console.log("hashedPassword", hashedPassword);
 
     const newUser = await pool.query(
-      "INSERT INTO users (identifier, password, fullName, username, auth_source) VALUES (?, ?, ?, ?, ?)",
-      [identifier, hashedPassword, fullName, username, auth_source]
+      "INSERT INTO users (identifier, password, fullName, username, auth_source, date_of_birth) VALUES (?, ?, ?, ?, ?, ?)",
+      [identifier, hashedPassword, fullName, username, auth_source, date_of_birth]
     );
 
     res.status(201).json({ message: "User registered successfully", user: newUser });
@@ -122,35 +118,5 @@ export const loginUser = async (req: Request, res: Response) => {
 
   } catch (error) {
     return res.status(400).json({ message: "Internal Server Error" });
-  }
-  
-}
-
-export const dobUser = async (req: Request, res: Response) => {
-  const {dob, identifier} = req.body as DOBUserRequest;
-  console.log(req.body);
-
-  console.log(identifier);
-
-  try {
-    const [rows, fields] = await pool.query<User[]>(
-      "Select * from users where identifier = ?",
-      [identifier]
-    )
-
-    if(rows.length==0) {
-      return res.status(400).json({ message: "User does not exist", problem: "identifier" });
-    }
-
-    await pool.query(
-      "UPDATE users SET date_of_birth = ? WHERE identifier = ?",
-      [dob, identifier]
-    )
-
-    res.status(200).json({ message: "User DOB updated successfully", user: rows });
-
-    } catch (error) {
-    console.error("❌ Error registering user:", error);
-    res.status(500).json({ message: "Internal Server Error, Please try again later" });
-  }
+  } 
 }

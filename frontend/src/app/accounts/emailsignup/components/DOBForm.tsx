@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { setDob } from '@/features/registrationSlice';
 import axios from 'axios';
-import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 
 interface DOBFormProps {
@@ -16,8 +17,9 @@ export default function DOBForm({ onSuccess }: DOBFormProps) {
     const [selectedYear, setSelectedYear] = useState('2024');
     const [error, setError] = useState<string | null>(null);
 
-    const identifier = useSelector((state: RootState) => state.identifier.value);
-
+    const dispatch = useDispatch();
+    const identifier = useSelector((state: RootState) => state.registration.identifier);
+    
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
@@ -39,10 +41,10 @@ export default function DOBForm({ onSuccess }: DOBFormProps) {
         const dob = `${selectedYear}-${String(months.indexOf(selectedMonth) + 1).padStart(2, '0')}-${selectedDay.padStart(2, '0')}`;
         console.log(dob);
 
-        axios.post("http://localhost:5000/users/dob", { dob, identifier }, { withCredentials: true })
-            .then((res) => {
-                console.log(res.data);
-                axios.post("http://localhost:5000/otp/send-otp", { identifier }, { withCredentials: true })
+        try {
+            dispatch(setDob(dob));
+            onSuccess();
+            axios.post("http://localhost:5000/otp/send-otp", { identifier: identifier }, { withCredentials: true })
                     .then((res) => {
                         console.log(res.data);
                     })
@@ -50,11 +52,10 @@ export default function DOBForm({ onSuccess }: DOBFormProps) {
                         console.log(err);
                     })
                 onSuccess();
-            })
-            .catch((err) => {
-                console.log(err);
-                setError(err.response.data.message);
-            })
+            
+        } catch (error) {
+            console.log(error);
+        }
     };
 
     return (

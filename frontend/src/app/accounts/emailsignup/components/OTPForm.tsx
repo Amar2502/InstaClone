@@ -2,12 +2,22 @@
 
 import { RootState } from '@/store/store';
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import SuccessAnimation from '@/components/self/successanimation';
+import { setIsAuthenticated } from '@/features/registrationSlice';
+import { form } from 'framer-motion/client';
 
 interface OTPFormProps {
     onSuccess: () => void;
+  }
+
+  interface formData {
+    username: string;
+    password: string;
+    fullName: string;
+    identifier: string;
+    auth_source: string;
   }
 
 export default function OTPForm({onSuccess}: OTPFormProps) {
@@ -15,13 +25,37 @@ export default function OTPForm({onSuccess}: OTPFormProps) {
   const [success, setSuccess] = useState(false);
   const [resendmessage, setResendmessage] = useState<string | null>(null);
 
-  const identifier = useSelector((state: RootState) => state.identifier.value);
+  const dispatch = useDispatch();
+
+  const identifier = useSelector((state: RootState) => state.registration.identifier);
+  const dob = useSelector((state: RootState) => state.registration.dob);
+  const formData = useSelector((state: RootState) => state.registration.formData) as formData;
+
+  const register = {
+    username: formData.username,
+    password: formData.password,
+    fullName: formData.fullName,
+    identifier: identifier,
+    auth_source: formData.auth_source,
+    date_of_birth: dob
+  }
+
+  console.log(register);
+  
 
   const handleVerification = () => {
     axios.post("http://localhost:5000/otp/verify-otp", { identifier, otp }, { withCredentials: true })
       .then((res) => {
         console.log(res.data);
-        setSuccess(true);
+        axios.post("http://localhost:5000/users/register", register)
+      .then((res) => {
+        console.log("Response:", res.data);
+        onSuccess();
+      })
+      .catch((err) => {
+        console.log("Error:", err.response.data.message);
+        console.error("Error:", err);
+      });
       })
       .catch((err) => {
         console.log(err);

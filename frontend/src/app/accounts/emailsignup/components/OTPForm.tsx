@@ -96,7 +96,7 @@ export default function OTPForm({onSuccess}: OTPFormProps) {
           Go back
         </p>
 
-        {success && <SuccessAnimation message="OTP verified successfully" redirectUrl="/dashboard" />}
+        {success && <SuccessAnimation message="OTP verified successfully" redirectUrl="/" />}
       </div>
 
       {/* Login Card */}
